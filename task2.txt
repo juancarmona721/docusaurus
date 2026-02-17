@@ -1,3 +1,56 @@
+CREATE TABLE estudiantes(
+	id_estudiante INT PRIMARY KEY AUTO_INCREMENT,
+	nombre_completo VARCHAR(120) NOT NULL,
+	correo_electronico VARCHAR(120) UNIQUE NOT NULL,
+	genero ENUM('M','F','O') NOT NULL,
+	indentificacion VARCHAR(45) UNIQUE NOT NULL,
+	carrera VARCHAR(70) NOT NULL,
+	fecha_nacimiento DATE NOT NULL,
+	fecha_ingreso DATE DEFAULT (CURRENT_DATE)
+);
+
+CREATE TABLE docentes(
+	id_docente INT PRIMARY KEY AUTO_INCREMENT, 
+	nombre_completo VARCHAR(120) NOT NULL,
+	correo_institucional VARCHAR(120) NOT NULL,
+	departamento_academico VARCHAR(45),
+	anios_experiencia TINYINT
+);
+
+CREATE TABLE cursos(
+	id_curso INT PRIMARY KEY AUTO_INCREMENT UNIQUE,
+	nombre VARCHAR(45),
+	codigo VARCHAR(45) UNIQUE NOT NULL,
+	creditos INT, 
+	semestre INT,
+	id_docente INT,
+	CONSTRAINT fk_curso_docente
+	FOREIGN KEY (id_docente)
+	REFERENCES docentes(id_docente)
+);
+
+CREATE TABLE inscripciones(
+	id_inscripcion INT PRIMARY KEY AUTO_INCREMENT UNIQUE,
+	id_estudiante INT NOT NULL,
+	id_curso INT NOT NULL,
+	fecha_inscripcion DATETIME DEFAULT CURRENT_TIMESTAMP,
+	calificacion_final DECIMAL(3,1),
+	
+	CONSTRAINT fk_inscripcion_estudiante
+	FOREIGN KEY (id_estudiante)
+	REFERENCES estudiantes(id_estudiante)
+	ON DELETE CASCADE,
+	
+	CONSTRAINT fk_inscripcion_curso
+	FOREIGN KEY (id_curso)
+	REFERENCES cursos(id_curso)
+	ON DELETE RESTRICT
+);
+
+
+
+
+
 INSERT INTO estudiantes (nombre_completo,correo_electronico,genero,indentificacion,carrera,fecha_nacimiento,fecha_ingreso)
 VALUES
 	('juan carmona', 'juan@mail.com','M','1234','zootecnia','2007-07-21','2026-02-17'),
@@ -5,3 +58,130 @@ VALUES
     ('Carlos Perez', 'carlos@mail.com', 'M', '8901', 'Derecho', '2006-11-30', '2026-02-17'),
     ('Luisa Hernandez', 'luisa@mail.com', 'F', '2345', 'Medicina', '2007-01-15', '2026-02-17'),
     ('Ana Gomez', 'ana@mail.com', 'F', '6789', 'Ingeniería', '2008-09-05', '2026-02-17');
+
+
+INSERT INTO docentes (nombre_completo, correo_institucional, departamento_academico, anios_experiencia)
+VALUES
+    ('Roberto Martínez', 'roberto.martinez@univ.edu', 'Ciencias', 8),
+    ('Laura García', 'laura.garcia@univ.edu', 'Humanidades', 12),
+    ('Pedro Díaz', 'pedro.diaz@univ.edu', 'Ingeniería', 5);
+
+INSERT INTO cursos (nombre, codigo, creditos, semestre, id_docente)
+VALUES
+    ('Cálculo I', 'MAT101', 4, 1, 1),
+    ('Ética Profesional', 'HUM200', 3, 4, 2),
+    ('Física Mecánica', 'FIS101', 4, 2, 1),
+    ('Bases de Datos', 'INF305', 4, 5, 3);
+
+INSERT INTO inscripciones (id_estudiante, id_curso, fecha_inscripcion, calificacion_final)
+VALUES
+    (1, 1, '2026-01-20', 4.5),
+    (1, 3, '2026-01-22', 3.8), 
+    (2, 2, '2026-01-25', 5.0), 
+    (3, 1, '2026-01-20', 2.9), 
+    (3, 4, '2026-01-26', 4.0), 
+    (4, 4, '2026-01-26', 3.5), 
+    (5, 1, '2026-01-20', 4.2), 
+    (5, 2, '2026-01-25', 4.8); 
+
+
+
+SELECT e.nombre_completo AS estudiante, c.nombre AS curso, i.calificacion_final
+FROM estudiantes e
+JOIN inscripciones i ON e.id_estudiante = i.id_estudiante
+JOIN cursos c ON i.id_curso = c.id_curso;
+
+
+SELECT c.nombre AS curso, d.nombre_completo AS docente, d.anios_experiencia
+FROM cursos c
+JOIN docentes d ON c.id_docente = d.id_docente
+WHERE d.anios_experiencia > 5;
+
+SELECT c.nombre AS curso, AVG(i.calificacion_final) AS promedio_curso
+FROM cursos c
+JOIN inscripciones i ON c.id_curso = i.id_curso
+GROUP BY c.nombre;
+
+SELECT e.nombre_completo, COUNT(i.id_curso) AS total_cursos
+FROM estudiantes e
+JOIN inscripciones i ON e.id_estudiante = i.id_estudiante
+GROUP BY e.id_estudiante, e.nombre_completo
+HAVING COUNT(i.id_curso) > 1;
+
+ALTER TABLE estudiantes ADD COLUMN estado_academico VARCHAR(20) DEFAULT 'Activo';
+
+SELECT c.nombre, COUNT(i.id_estudiante) AS total_inscritos
+FROM cursos c
+JOIN inscripciones i ON c.id_curso = i.id_curso
+GROUP BY c.nombre
+HAVING COUNT(i.id_estudiante) > 2;
+
+DELETE FROM docentes WHERE id_docente = 2;
+
+
+
+-----------------task4----------------
+
+SELECT e.nombre_completo, ROUND(AVG(i.calificacion_final), 2) AS promedio_estudiante
+FROM estudiantes e
+JOIN inscripciones i ON e.id_estudiante = i.id_estudiante
+GROUP BY e.id_estudiante, e.nombre_completo
+HAVING AVG(i.calificacion_final) > (SELECT AVG(calificacion_final) FROM inscripciones);
+
+
+SELECT DISTINCT carrera 
+FROM estudiantes 
+WHERE id_estudiante IN (
+    SELECT i.id_estudiante 
+    FROM inscripciones i 
+    JOIN cursos c ON i.id_curso = c.id_curso 
+    WHERE c.semestre >= 2
+);
+
+SELECT 
+    COUNT(*) AS total_inscripciones,
+    MAX(calificacion_final) AS nota_mas_alta,
+    MIN(calificacion_final) AS nota_mas_baja,
+    ROUND(AVG(calificacion_final), 2) AS promedio_global,
+    SUM(c.creditos) AS total_creditos_matriculados
+FROM inscripciones i
+JOIN cursos c ON i.id_curso = c.id_curso;
+
+------------task5-----------------
+
+CREATE OR REPLACE VIEW vista_historial_academico AS
+SELECT 
+    e.nombre_completo AS estudiante,
+    c.nombre AS curso,
+    d.nombre_completo AS docente,
+    c.semestre,
+    i.calificacion_final
+FROM inscripciones i
+JOIN estudiantes e ON i.id_estudiante = e.id_estudiante
+JOIN cursos c ON i.id_curso = c.id_curso
+JOIN docentes d ON c.id_docente = d.id_docente;
+
+SELECT * FROM vista_historial_academico;
+
+
+---------tasks6------
+
+CREATE USER IF NOT EXISTS 'revisor_academico'@'localhost' IDENTIFIED BY 'Pass1234';
+
+GRANT SELECT ON vista_historial_academico TO 'revisor_academico'@'localhost';
+
+REVOKE INSERT, UPDATE, DELETE ON inscripciones FROM 'revisor_academico'@'localhost';
+
+FLUSH PRIVILEGES;
+--------
+
+START TRANSACTION;
+
+UPDATE inscripciones SET calificacion_final = 4.0 WHERE id_inscripcion = 1;
+
+SAVEPOINT punto_seguro;
+DELETE FROM inscripciones;
+ROLLBACK TO punto_seguro;
+COMMIT;
+
+SELECT * FROM inscripciones;
