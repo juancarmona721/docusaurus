@@ -1,0 +1,87 @@
+---
+id: gestion-academica
+title: Gestión Académica Universidad
+sidebar_label: Proyecto Gestión Académica
+---
+
+# Proyecto: Gestión Académica Universidad
+
+Documentación técnica del diseño e implementación de la base de datos para la administración de estudiantes, docentes, cursos e inscripciones.
+
+## Descripción del Proyecto
+
+El objetivo es diseñar una base de datos relacional que soporte la gestión académica, aplicando estándares SQL (DDL, DML, DQL, DCL y TCL). El sistema permite administrar:
+* Registro de estudiantes y docentes.
+* Creación de cursos.
+* Inscripciones y calificaciones.
+* Auditoría y control de transacciones.
+
+:::info Requerimientos
+El sistema debe cumplir con integridad referencial, restricciones de dominio y permitir análisis mediante agregaciones y subconsultas.
+:::
+
+---
+
+## Task 1: Diseño de la Base de Datos (DDL)
+
+A continuación se presenta el código SQL para la creación de las tablas con sus respectivas llaves primarias (PK), foráneas (FK) y restricciones (`UNIQUE`, `NOT NULL`, `CHECK`).
+
+```sql
+-- Creación de la Base de Datos
+CREATE DATABASE IF NOT EXISTS gestion_academica_universidad;
+USE gestion_academica_universidad;
+
+-- Tabla: Estudiantes
+CREATE TABLE estudiantes(
+    id_estudiante INT PRIMARY KEY AUTO_INCREMENT,
+    nombre_completo VARCHAR(120) NOT NULL,
+    correo_electronico VARCHAR(120) UNIQUE NOT NULL,
+    genero ENUM('M','F','O') NOT NULL,
+    identificacion VARCHAR(45) UNIQUE NOT NULL,
+    carrera VARCHAR(70) NOT NULL,
+    fecha_nacimiento DATE NOT NULL,
+    fecha_ingreso DATE DEFAULT (CURRENT_DATE),
+    estado_academico VARCHAR(20) DEFAULT 'ACTIVO' -- Agregado para cumplir Task 3
+);
+
+-- Tabla: Docentes
+CREATE TABLE docentes(
+    id_docente INT PRIMARY KEY AUTO_INCREMENT, 
+    nombre_completo VARCHAR(120) NOT NULL,
+    correo_institucional VARCHAR(120) NOT NULL,
+    departamento_academico VARCHAR(45),
+    anios_experiencia TINYINT CHECK (anios_experiencia >= 0)
+);
+
+-- Tabla: Cursos
+CREATE TABLE cursos(
+    id_curso INT PRIMARY KEY AUTO_INCREMENT,
+    nombre VARCHAR(45) NOT NULL,
+    codigo VARCHAR(45) UNIQUE NOT NULL,
+    creditos INT CHECK (creditos > 0), 
+    semestre INT,
+    id_docente INT,
+    CONSTRAINT fk_curso_docente
+        FOREIGN KEY (id_docente)
+        REFERENCES docentes(id_docente)
+        ON DELETE SET NULL
+);
+
+-- Tabla: Inscripciones
+CREATE TABLE inscripciones(
+    id_inscripcion INT PRIMARY KEY AUTO_INCREMENT,
+    id_estudiante INT NOT NULL,
+    id_curso INT NOT NULL,
+    fecha_inscripcion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    calificacion_final DECIMAL(3,1) CHECK (calificacion_final >= 0.0 AND calificacion_final <= 5.0),
+    
+    CONSTRAINT fk_inscripcion_estudiante
+        FOREIGN KEY (id_estudiante)
+        REFERENCES estudiantes(id_estudiante)
+        ON DELETE CASCADE,
+    
+    CONSTRAINT fk_inscripcion_curso
+        FOREIGN KEY (id_curso)
+        REFERENCES cursos(id_curso)
+        ON DELETE RESTRICT
+);
